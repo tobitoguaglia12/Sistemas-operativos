@@ -52,6 +52,7 @@ void imprimirParticiones(struct Particion* p);
 void mostrarBienvenida();
 void imprimirEstadisticas(struct Proceso* finalizados, int tiempoTotal);
 char esperarAccion();
+int contarProcesosEnMemoria(struct Particion* particiones);
 struct Proceso* copiarListaProcesos(struct Proceso* original);
 struct Particion* copiarListaParticiones(struct Particion* original);
 struct Estado* guardarEstado(int tiempo, struct Particion* p, struct Proceso* n,
@@ -332,6 +333,20 @@ char esperarAccion() {
     }
 }
 
+// Función para contar procesos en memoria (excluyendo el SO)
+int contarProcesosEnMemoria(struct Particion* particiones) {
+    int contador = 0;
+    struct Particion* temp = particiones;
+    while (temp != NULL) {
+        // Contar solo si hay un proceso asignado Y no es el SO
+        if (strcmp(temp->idProceso, "") != 0 && strcmp(temp->idProceso, "SO") != 0) {
+            contador++;
+        }
+        temp = temp->prox;
+    }
+    return contador;
+}
+
 // -------------------- FUNCIONES DE COPIA --------------------
 struct Proceso* copiarListaProcesos(struct Proceso* original) {
     if (!original) return NULL;
@@ -550,10 +565,17 @@ int main() {
             temp = sig;
         }
 
-        // B. ADMISIÓN EN MEMORIA (Best-Fit)
+        // B. ADMISIÓN EN MEMORIA (Best-Fit) - CON CONTROL DE MULTIPROGRAMACIÓN
         temp = listos_suspendidos;
         while (temp) {
             struct Proceso* sig = temp->prox;
+            
+            // CONTROL DE MULTIPROGRAMACIÓN: Máximo 5 procesos en memoria
+            int procesosEnMemoria = contarProcesosEnMemoria(particiones);
+            if (procesosEnMemoria >= 5) {
+                break; // No admitir más procesos si ya hay 5 en memoria
+            }
+            
             struct Particion* mejor = NULL;
             for (struct Particion* mem = particiones; mem; mem = mem->prox) {
                 if (strcmp(mem->idProceso, "") == 0 && temp->tamaño <= mem->tamaño) {
